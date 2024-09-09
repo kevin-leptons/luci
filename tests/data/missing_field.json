@@ -1,0 +1,5 @@
+// The field "host" is missing.
+{
+  // Listen on this port.
+  "port": 8000
+}

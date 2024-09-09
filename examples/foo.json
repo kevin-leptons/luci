@@ -1,0 +1,7 @@
+{
+  // Listen on this address.
+  "host": "127.0.0.1",
+
+  // Listen on this port.
+  "port": 8000
+}
