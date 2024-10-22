@@ -5,18 +5,11 @@ use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use crate::error::{Error, ErrorKind};
-use crate::result::Result;
+use crate::result::{Error, Result};
 
 /// Go through a list of `JSONC` files. For each file, try to map it into data
 /// structure `T`. Return result on the first success or failure. The
 /// configuration file must be secured by `mode=600`.
-///
-/// # Examples
-///
-/// ```no_run
-#[doc = include_str!("../examples/read_jsonc.rs")]
-///
 pub fn read_jsonc<T, P>(files: impl Iterator<Item = P>) -> Result<(T, PathBuf)>
 where
     T: de::DeserializeOwned,
@@ -27,17 +20,13 @@ where
             Ok(v) => {
                 return Ok((v, file.as_ref().to_path_buf()));
             }
-            Err(e) => match e.kind() {
-                ErrorKind::NotFound => {}
+            Err(e) => match e {
+                Error::NotFound => {}
                 _ => return Err(e),
             },
         }
     }
-    let error = Error {
-        kind: ErrorKind::NotFound,
-        file: None,
-    };
-    Err(error)
+    Err(Error::NotFound)
 }
 
 fn read_jsonc_file<T, P>(path: P) -> Result<T>
@@ -47,7 +36,7 @@ where
 {
     let data = read_secured_file(path.as_ref())?;
     let config = parse_json(data, path)?;
-    return Ok(config);
+    Ok(config)
 }
 
 fn read_secured_file<P>(path: P) -> Result<String>
@@ -75,13 +64,10 @@ where
     };
     let mode = metadata.permissions().mode();
     if (mode & S_IXUSR > 0) || (mode & S_IRWXO > 0) || (mode & S_IRWXG > 0) {
-        let error = Error {
-            kind: ErrorKind::Insecured(metadata.permissions()),
-            file: Some(path.as_ref().to_path_buf()),
-        };
+        let error = Error::Insecured(path.as_ref().to_path_buf(), metadata.permissions());
         return Err(error);
     }
-    return Ok(());
+    Ok(())
 }
 
 fn parse_json<T, P>(value: String, file: P) -> Result<T>
@@ -92,10 +78,7 @@ where
     match serde_hjson::from_str(&value) {
         Ok(v) => Ok(v),
         Err(e) => {
-            let error = Error {
-                kind: ErrorKind::Deserialization(e.to_string()),
-                file: Some(file.as_ref().to_path_buf()),
-            };
+            let error = Error::Deserialization(file.as_ref().to_path_buf(), e.to_string());
             Err(error)
         }
     }
@@ -106,13 +89,7 @@ where
     P: AsRef<Path>,
 {
     match error.kind() {
-        io::ErrorKind::NotFound => Error {
-            kind: ErrorKind::NotFound,
-            file: None,
-        },
-        _ => Error {
-            kind: ErrorKind::Io(error),
-            file: Some(path.as_ref().to_path_buf()),
-        },
+        io::ErrorKind::NotFound => Error::NotFound,
+        _ => Error::Io(path.as_ref().to_path_buf(), error),
     }
 }

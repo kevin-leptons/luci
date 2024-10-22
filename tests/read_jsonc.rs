@@ -1,4 +1,4 @@
-use luci::error::ErrorKind;
+use luci::result::Error;
 use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
@@ -26,42 +26,30 @@ fn valid() {
 fn not_found() {
     let file = "tests/data/not_existed.json";
     let error = luci::read_jsonc::<Configuration, _>([file].iter()).unwrap_err();
-    let is_not_found = match error.kind() {
-        ErrorKind::NotFound => true,
-        _ => false,
-    };
-    assert_eq!(is_not_found, true);
+    let matched_error = matches!(error, Error::NotFound);
+    assert!(matched_error);
 }
 
 #[test]
 fn unknown_field() {
     let file = "tests/data/unknown_field.json";
     let error = luci::read_jsonc::<Configuration, _>([file].iter()).unwrap_err();
-    let is_matched_error = match error.kind() {
-        ErrorKind::Deserialization(_) => true,
-        _ => false,
-    };
-    assert_eq!(is_matched_error, true);
+    let matched_error = matches!(error, Error::Deserialization(_, _));
+    assert!(matched_error);
 }
 
 #[test]
 fn missing_field() {
     let file = "tests/data/missing_field.json";
     let error = luci::read_jsonc::<Configuration, _>([file].iter()).unwrap_err();
-    let is_matched_error = match error.kind() {
-        ErrorKind::Deserialization(_) => true,
-        _ => false,
-    };
-    assert_eq!(is_matched_error, true);
+    let matched_error = matches!(error, Error::Deserialization(_, _));
+    assert!(matched_error);
 }
 
 #[test]
 fn malformed_format() {
     let file = "tests/data/malformed_jsonc.json";
     let error = luci::read_jsonc::<Configuration, _>([file].iter()).unwrap_err();
-    let is_matched_error = match error.kind() {
-        ErrorKind::Deserialization(_) => true,
-        _ => false,
-    };
-    assert_eq!(is_matched_error, true);
+    let matched_error = matches!(error, Error::Deserialization(_, _));
+    assert!(matched_error);
 }
